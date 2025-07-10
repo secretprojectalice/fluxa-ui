@@ -1,3 +1,145 @@
+import { useState, useEffect, useRef } from "react"
+import { Input } from "../components/ui/input"
+import { Button } from "../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
+import type { LanguageItem } from "../definitions/language"
+import { Search } from "lucide-react"
+import { useDebounce } from "../lib/utils"
+
+// Simulate a backend dataset
+const ALL_ITEMS: LanguageItem[] = Array.from({ length: 50 }, (_, i) => ({
+    id: `${i + 1}-b2c3d4e-1111-2222-3333-4444555566${(i + 1).toString().padStart(2, '0')}`,
+    content: `word${i + 1}`,
+    translation: `переклад${i + 1}`,
+    example: `Example sentence for word${i + 1}.`,
+    itemType: "word",
+    sourceLanguage: "en",
+    targetLanguage: "uk",
+}))
+
+const PAGE_SIZE = 10
+
+// Simulated API fetch
+function fetchItemsFromApi({ page, search }: { page: number; search: string }): Promise<{ items: LanguageItem[]; hasMore: boolean }> {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            const filtered = ALL_ITEMS.filter(item =>
+                item.content.toLowerCase().includes(search.toLowerCase()) ||
+                item.translation.toLowerCase().includes(search.toLowerCase()) ||
+                (item.example?.toLowerCase().includes(search.toLowerCase()) ?? false)
+            )
+            const start = (page - 1) * PAGE_SIZE
+            const end = start + PAGE_SIZE
+            resolve({
+                items: filtered.slice(start, end),
+                hasMore: end < filtered.length
+            })
+        }, 1000)
+    })
+}
+
 export default function LanguageTrainer() {
-    return <h3>Language Trainer</h3>
+    const [search, setSearch] = useState("")
+    const debouncedSearch = useDebounce(search, 400)
+    const [items, setItems] = useState<LanguageItem[]>([])
+    const [page, setPage] = useState(1)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [hasMore, setHasMore] = useState(true)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        setLoading(true)
+        setError(null)
+        fetchItemsFromApi({ page, search: debouncedSearch })
+            .then(data => {
+                setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
+                setHasMore(data.hasMore)
+                setLoading(false)
+            })
+            .catch(() => {
+                setError("Failed to load items")
+                setLoading(false)
+            })
+    }, [page, debouncedSearch])
+
+    useEffect(() => {
+        setItems([])
+        setPage(1)
+        setHasMore(true)
+    }, [debouncedSearch])
+
+    // Infinite scroll handler
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+        if (scrollHeight - scrollTop - clientHeight < 100 && hasMore && !loading) {
+            setPage(prev => prev + 1)
+        }
+    }
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault()
+    }
+
+    return (
+        <Card className="max-w-3xl">
+            <CardHeader>
+                <CardTitle>Language Trainer</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {/* Form */}
+                <form className="flex gap-2 mb-6" onSubmit={handleSearch}>
+                    <div className="relative max-w-xs w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    <Button type="button" variant="secondary">Add item</Button>
+                </form>
+
+                <div
+                    ref={containerRef}
+                    className="overflow-y-auto rounded-lg border max-h-96"
+                    style={{ minHeight: 240 }}
+                    onScroll={handleScroll}
+                >
+                    <table className="min-w-full text-sm">
+                        <thead>
+                            <tr className="bg-muted">
+                                <th className="px-4 py-2 text-left font-semibold">Content</th>
+                                <th className="px-4 py-2 text-left font-semibold">Translation</th>
+                                <th className="px-4 py-2 text-left font-semibold">Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.length === 0 && !loading ? (
+                                <tr>
+                                    <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">No items found.</td>
+                                </tr>
+                            ) : (
+                                items.map(item => (
+                                    <tr key={item.id} className="border-t">
+                                        <td className="px-4 py-2">{item.content}</td>
+                                        <td className="px-4 py-2">{item.translation}</td>
+                                        <td className="px-4 py-2">{item.example ?? "—"}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                    {/* Loader for more items */}
+                    {loading && (
+                        <div className="py-4 text-center text-muted-foreground text-xs">Loading...</div>
+                    )}
+                    {error && (
+                        <div className="py-4 text-center text-destructive text-xs">{error}</div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    )
 }

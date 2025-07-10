@@ -1,6 +1,6 @@
 import { Separator } from '@radix-ui/react-separator'
 import { Outlet } from 'react-router-dom'
-import { AppSidebar } from './appsidebar'
+import { AppSidebar } from './AppSidebar'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from './ui/sidebar'
 
 interface LayoutProps {
