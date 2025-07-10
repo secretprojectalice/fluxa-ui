@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Settings, LogOut, LinkIcon } from "lucide-react"
+import { Home, Settings, LogOut, LinkIcon, Languages } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -11,7 +11,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarHeader,
+    // SidebarHeader,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 
@@ -22,9 +22,9 @@ const items = [
         icon: Home,
     },
     {
-        title: "Link 1",
+        title: "Language Trainer",
         url: "#",
-        icon: LinkIcon,
+        icon: Languages,
     },
     {
         title: "Link 2",
@@ -44,8 +44,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onSignOut }: AppSidebarProps) {
     return (
-        <Sidebar className="bg-slate-900 border-slate-700">
-            <SidebarHeader className="border-b border-slate-700 p-4">
+        <Sidebar>
+            {/* <SidebarHeader className="border-b border-slate-700 p-4">
                 <div className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600">
                         <span className="text-sm font-bold text-white">A</span>
@@ -55,16 +55,16 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
                         <span className="truncate text-xs text-slate-400">Dashboard</span>
                     </div>
                 </div>
-            </SidebarHeader>
+            </SidebarHeader> */}
 
-            <SidebarContent className="bg-slate-900">
+            <SidebarContent>
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-slate-400">Navigation</SidebarGroupLabel>
+                    <SidebarGroupLabel className="text-slate-700 text-lg mb-5">Fluxa</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {items.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild className="text-slate-300 hover:text-white hover:bg-slate-800">
+                                    <SidebarMenuButton asChild className="hover:text-white hover:bg-gray-700">
                                         <a href={item.url}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
@@ -77,11 +77,11 @@ export function AppSidebar({ onSignOut }: AppSidebarProps) {
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-slate-700 p-4">
+            <SidebarFooter className="border-t p-4">
                 <Button
                     onClick={onSignOut}
                     variant="ghost"
-                    className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+                    className="w-full justify-start hover:text-white hover:bg-gray-700"
                 >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
