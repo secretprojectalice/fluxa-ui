@@ -18,12 +18,12 @@ import { Button } from "@/components/ui/button"
 const items = [
     {
         title: "Dashboard",
-        url: "#",
+        url: "/dashboard",
         icon: Home,
     },
     {
         title: "Language Trainer",
-        url: "#",
+        url: "/language",
         icon: Languages,
     },
     {

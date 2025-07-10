@@ -8,12 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Phone, Lock, Eye, EyeOff } from "lucide-react"
+import { useNavigate } from 'react-router-dom'
 
-interface SignInProps {
-    onSignIn: () => void
-}
-
-export default function SignIn({ onSignIn }: SignInProps) {
+export default function SignIn() {
+    const navigate = useNavigate()
     const [phoneNumber, setPhoneNumber] = useState("")
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
@@ -27,7 +25,7 @@ export default function SignIn({ onSignIn }: SignInProps) {
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
         setIsLoading(false)
-        onSignIn()
+        navigate("/dashboard")
     }
 
     return (

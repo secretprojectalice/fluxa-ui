@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import Dashboard from './pages/dashboard'
 import SignIn from './pages/SignIn'
+import LanguageTrainer from './pages/LanguageTrainer'
+import Layout from './components/Layout'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -12,24 +13,25 @@ function App() {
         <Route
           path="/signin"
           element={
-            isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <SignIn onSignIn={() => setIsAuthenticated(true)} />
-            )
+            <SignIn />
           }
         />
         <Route
-          path="/dashboard"
-          element={
-            isAuthenticated ? (
-              <Dashboard onSignOut={() => setIsAuthenticated(false)} />
-            ) : (
-              <Navigate to="/signin" replace />
-            )
-          }
-        />
-        <Route path="/" element={<Navigate to="/signin" replace />} />
+          path="/" element={<Layout onSignOut={() => navigate("/signin")} />}
+        >
+          <Route
+            path="/language"
+            element={
+              <LanguageTrainer />
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <Dashboard />
+            }
+          />
+        </Route>
       </Routes>
     </div>
   )
