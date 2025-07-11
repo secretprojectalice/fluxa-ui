@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react"
-import { Input } from "../components/ui/input"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import type { LanguageItem } from "../definitions/language"
-import { Search } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { LanguageItem } from "@/definitions/language"
+import { Search, Trash } from "lucide-react"
 import { useDebounce } from "../lib/utils"
+import AddLanguageItemDialog from "@/components/AddLanguageItemDialog"
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog"
 
 // Simulate a backend dataset
 const ALL_ITEMS: LanguageItem[] = Array.from({ length: 50 }, (_, i) => ({
@@ -38,6 +40,31 @@ function fetchItemsFromApi({ page, search }: { page: number; search: string }): 
     })
 }
 
+// Simulated API add
+function addItemToApi(item: Omit<LanguageItem, "id">): Promise<LanguageItem> {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            const newItem: LanguageItem = {
+                ...item,
+                id: `${Date.now()}-new`,
+            }
+            ALL_ITEMS.unshift(newItem)
+            resolve(newItem)
+        }, 1000)
+    })
+}
+
+// Simulated API delete
+function deleteItemFromApi(id: string): Promise<void> {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            const idx = ALL_ITEMS.findIndex(item => item.id === id)
+            if (idx !== -1) ALL_ITEMS.splice(idx, 1)
+            resolve()
+        }, 1000)
+    })
+}
+
 export default function LanguageTrainer() {
     const [search, setSearch] = useState("")
     const debouncedSearch = useDebounce(search, 400)
@@ -46,7 +73,24 @@ export default function LanguageTrainer() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [hasMore, setHasMore] = useState(true)
-    const containerRef = useRef<HTMLDivElement>(null)
+
+    // Add Item dialog state
+    const [open, setOpen] = useState(false)
+    const [addLoading, setAddLoading] = useState(false)
+    const [addError, setAddError] = useState<string | null>(null)
+    const [form, setForm] = useState<Omit<LanguageItem, "id">>({
+        content: "",
+        translation: "",
+        example: "",
+        itemType: "word",
+        sourceLanguage: "en",
+        targetLanguage: "uk",
+    })
+
+    // Delete Item dialog state
+    const [deleteOpen, setDeleteOpen] = useState(false)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+    const [deleteItem, setDeleteItem] = useState<LanguageItem | null>(null)
 
     useEffect(() => {
         setLoading(true)
@@ -81,6 +125,63 @@ export default function LanguageTrainer() {
         e.preventDefault()
     }
 
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target
+        setForm(f => ({ ...f, [name]: value }))
+    }
+
+    const handleAddItem = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setAddLoading(true)
+        setAddError(null)
+        try {
+            await addItemToApi(form)
+            setOpen(false)
+            setForm({
+                content: "",
+                translation: "",
+                example: "",
+                itemType: "word",
+                sourceLanguage: "en",
+                targetLanguage: "uk",
+            })
+            // Refresh list
+            //setItems([])
+            setPage(1)
+            setHasMore(true)
+        } catch {
+            setAddError("Failed to add item")
+        } finally {
+            setAddLoading(false)
+        }
+    }
+
+    const handleDeleteClick = (item: LanguageItem) => {
+        setDeleteItem(item)
+        setDeleteOpen(true)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteItem) return
+        setDeleteLoading(true)
+        await deleteItemFromApi(deleteItem.id)
+        setDeleteOpen(false)
+        setDeleteLoading(false)
+        setDeleteItem(null)
+        setPage(1)
+        setHasMore(true)
+        fetchItemsFromApi({ page, search: debouncedSearch })
+            .then(data => {
+                setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
+                setHasMore(data.hasMore)
+                setLoading(false)
+            })
+            .catch(() => {
+                setError("Failed to load items")
+                setLoading(false)
+            })
+    }
+
     return (
         <Card className="max-w-3xl">
             <CardHeader>
@@ -98,11 +199,33 @@ export default function LanguageTrainer() {
                             className="pl-10"
                         />
                     </div>
-                    <Button type="button" variant="secondary">Add item</Button>
+                    <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
+                        Add item
+                    </Button>
                 </form>
 
+                {/* Add Item Dialog */}
+                <AddLanguageItemDialog
+                    open={open}
+                    setOpen={setOpen}
+                    loading={addLoading}
+                    error={addError}
+                    form={form}
+                    onChange={handleFormChange}
+                    onSubmit={handleAddItem}
+                />
+
+                {/* Confirm Delete Dialog */}
+                <ConfirmDeleteDialog
+                    open={deleteOpen}
+                    setOpen={setDeleteOpen}
+                    onConfirm={handleDeleteConfirm}
+                    description={deleteItem ? `Are you sure you would like to delete "${deleteItem.content}"?` : undefined}
+                    loading={deleteLoading}
+                />
+
+                {/* Table with lazy scroll */}
                 <div
-                    ref={containerRef}
                     className="overflow-y-auto rounded-lg border max-h-96"
                     style={{ minHeight: 240 }}
                     onScroll={handleScroll}
@@ -113,19 +236,30 @@ export default function LanguageTrainer() {
                                 <th className="px-4 py-2 text-left font-semibold">Content</th>
                                 <th className="px-4 py-2 text-left font-semibold">Translation</th>
                                 <th className="px-4 py-2 text-left font-semibold">Example</th>
+                                <th className="px-2 py-2 w-10"></th>
                             </tr>
                         </thead>
                         <tbody>
                             {items.length === 0 && !loading ? (
                                 <tr>
-                                    <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">No items found.</td>
+                                    <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No items found.</td>
                                 </tr>
                             ) : (
                                 items.map(item => (
-                                    <tr key={item.id} className="border-t">
+                                    <tr key={item.id} className="border-t group hover:bg-accent/30 transition-colors">
                                         <td className="px-4 py-2">{item.content}</td>
                                         <td className="px-4 py-2">{item.translation}</td>
-                                        <td className="px-4 py-2">{item.example ?? "—"}</td>
+                                        <td className="px-4 py-2">{item.example}</td>
+                                        <td className="px-2 py-2 text-center align-middle">
+                                            <button
+                                                type="button"
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                                title="Delete"
+                                                onClick={() => handleDeleteClick(item)}
+                                            >
+                                                <Trash className="h-4 w-4" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             )}
