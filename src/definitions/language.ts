@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const LanguageItemSchema = z.object({
+export const LanguageItemSchema = z.object({
     id: z.uuid(),
     content: z.string(),
     translation: z.string(),
@@ -10,4 +10,14 @@ const LanguageItemSchema = z.object({
     targetLanguage: z.enum(["en", "uk"]).default("uk"),
 })
 
+export const LanguageItemUpdateSchema = LanguageItemSchema.partial().pick({
+    content: true,
+    translation: true,
+    example: true,
+    itemType: true,
+    sourceLanguage: true,
+    targetLanguage: true,
+})
+
 export type LanguageItem = z.infer<typeof LanguageItemSchema>
+export type LanguageItemUpdate = z.infer<typeof LanguageItemUpdateSchema>

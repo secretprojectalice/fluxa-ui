@@ -7,6 +7,7 @@ import { Search, Trash } from "lucide-react"
 import { useDebounce } from "../lib/utils"
 import AddLanguageItemDialog from "@/components/AddLanguageItemDialog"
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog"
+import { useInfiniteLanguageItems } from '@/hooks/useLangugage'
 
 // Simulate a backend dataset
 const ALL_ITEMS: LanguageItem[] = Array.from({ length: 50 }, (_, i) => ({
@@ -20,25 +21,6 @@ const ALL_ITEMS: LanguageItem[] = Array.from({ length: 50 }, (_, i) => ({
 }))
 
 const PAGE_SIZE = 10
-
-// Simulated API fetch
-function fetchItemsFromApi({ page, search }: { page: number; search: string }): Promise<{ items: LanguageItem[]; hasMore: boolean }> {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const filtered = ALL_ITEMS.filter(item =>
-                item.content.toLowerCase().includes(search.toLowerCase()) ||
-                item.translation.toLowerCase().includes(search.toLowerCase()) ||
-                (item.example?.toLowerCase().includes(search.toLowerCase()) ?? false)
-            )
-            const start = (page - 1) * PAGE_SIZE
-            const end = start + PAGE_SIZE
-            resolve({
-                items: filtered.slice(start, end),
-                hasMore: end < filtered.length
-            })
-        }, 1000)
-    })
-}
 
 // Simulated API add
 function addItemToApi(item: Omit<LanguageItem, "id">): Promise<LanguageItem> {
@@ -68,11 +50,19 @@ function deleteItemFromApi(id: string): Promise<void> {
 export default function LanguageTrainer() {
     const [search, setSearch] = useState("")
     const debouncedSearch = useDebounce(search, 400)
-    const [items, setItems] = useState<LanguageItem[]>([])
-    const [page, setPage] = useState(1)
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const [hasMore, setHasMore] = useState(true)
+
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        status,
+        error,
+        isLoading,
+    } = useInfiniteLanguageItems(debouncedSearch, PAGE_SIZE)
+
+    // Flatten the infinite query data
+    const items = data?.pages.flatMap(page => page.items) ?? []
 
     // Add Item dialog state
     const [open, setOpen] = useState(false)
@@ -92,37 +82,11 @@ export default function LanguageTrainer() {
     const [deleteLoading, setDeleteLoading] = useState(false)
     const [deleteItem, setDeleteItem] = useState<LanguageItem | null>(null)
 
-    useEffect(() => {
-        setLoading(true)
-        setError(null)
-        fetchItemsFromApi({ page, search: debouncedSearch })
-            .then(data => {
-                setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
-                setHasMore(data.hasMore)
-                setLoading(false)
-            })
-            .catch(() => {
-                setError("Failed to load items")
-                setLoading(false)
-            })
-    }, [page, debouncedSearch])
-
-    useEffect(() => {
-        setItems([])
-        setPage(1)
-        setHasMore(true)
-    }, [debouncedSearch])
-
-    // Infinite scroll handler
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
-        if (scrollHeight - scrollTop - clientHeight < 100 && hasMore && !loading) {
-            setPage(prev => prev + 1)
+        if (scrollHeight - scrollTop - clientHeight < 100 && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage()
         }
-    }
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
     }
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -147,8 +111,8 @@ export default function LanguageTrainer() {
             })
             // Refresh list
             //setItems([])
-            setPage(1)
-            setHasMore(true)
+            //setPage(1)
+            //setHasMore(true)
         } catch {
             setAddError("Failed to add item")
         } finally {
@@ -168,28 +132,28 @@ export default function LanguageTrainer() {
         setDeleteOpen(false)
         setDeleteLoading(false)
         setDeleteItem(null)
-        setPage(1)
-        setHasMore(true)
-        fetchItemsFromApi({ page, search: debouncedSearch })
-            .then(data => {
-                setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
-                setHasMore(data.hasMore)
-                setLoading(false)
-            })
-            .catch(() => {
-                setError("Failed to load items")
-                setLoading(false)
-            })
+        //setPage(1)
+        //setHasMore(true)
+        //fetchItemsFromApi({ page, search: debouncedSearch })
+        //    .then(data => {
+        //        setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
+        //        setHasMore(data.hasMore)
+        //        setLoading(false)
+        //    })
+        //    .catch(() => {
+        //        setError("Failed to load items")
+        //        setLoading(false)
+        //    })
     }
 
     return (
-        <Card className="max-w-3xl">
+        <Card className="max-w-5xl">
             <CardHeader>
                 <CardTitle>Language Trainer</CardTitle>
             </CardHeader>
             <CardContent>
                 {/* Form */}
-                <form className="flex gap-2 mb-6" onSubmit={handleSearch}>
+                <form className="flex gap-2 mb-6">
                     <div className="relative max-w-xs w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -240,7 +204,7 @@ export default function LanguageTrainer() {
                             </tr>
                         </thead>
                         <tbody>
-                            {items.length === 0 && !loading ? (
+                            {items.length === 0 && !isLoading ? (
                                 <tr>
                                     <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">No items found.</td>
                                 </tr>
@@ -266,11 +230,14 @@ export default function LanguageTrainer() {
                         </tbody>
                     </table>
                     {/* Loader for more items */}
-                    {loading && (
+                    {isFetchingNextPage && (
+                        <div className="py-4 text-center text-muted-foreground text-xs">Loading more...</div>
+                    )}
+                    {isLoading && (
                         <div className="py-4 text-center text-muted-foreground text-xs">Loading...</div>
                     )}
                     {error && (
-                        <div className="py-4 text-center text-destructive text-xs">{error}</div>
+                        <div className="py-4 text-center text-destructive text-xs">{error.message}</div>
                     )}
                 </div>
             </CardContent>
