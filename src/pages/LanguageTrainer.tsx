@@ -1,51 +1,16 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { LanguageItem } from "@/definitions/language"
-import { Search, Trash } from "lucide-react"
+import type { LanguageItem, LanguageItemUpdate } from "@/definitions/language"
+import { Search, Trash, Edit } from "lucide-react"
 import { useDebounce } from "../lib/utils"
 import AddLanguageItemDialog from "@/components/AddLanguageItemDialog"
+import UpdateLanguageItemDialog from "@/components/UpdateLanguageItemDialog"
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog"
-import { useInfiniteLanguageItems } from '@/hooks/useLangugage'
-
-// Simulate a backend dataset
-const ALL_ITEMS: LanguageItem[] = Array.from({ length: 50 }, (_, i) => ({
-    id: `${i + 1}-b2c3d4e-1111-2222-3333-4444555566${(i + 1).toString().padStart(2, '0')}`,
-    content: `word${i + 1}`,
-    translation: `переклад${i + 1}`,
-    example: `Example sentence for word${i + 1}.`,
-    itemType: "word",
-    sourceLanguage: "en",
-    targetLanguage: "uk",
-}))
+import { useInfiniteLanguageItems, useCreateLanguageItem, useUpdateLanguageItem, useDeleteLanguageItem } from '@/hooks/useLanguage'
 
 const PAGE_SIZE = 10
-
-// Simulated API add
-function addItemToApi(item: Omit<LanguageItem, "id">): Promise<LanguageItem> {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const newItem: LanguageItem = {
-                ...item,
-                id: `${Date.now()}-new`,
-            }
-            ALL_ITEMS.unshift(newItem)
-            resolve(newItem)
-        }, 1000)
-    })
-}
-
-// Simulated API delete
-function deleteItemFromApi(id: string): Promise<void> {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            const idx = ALL_ITEMS.findIndex(item => item.id === id)
-            if (idx !== -1) ALL_ITEMS.splice(idx, 1)
-            resolve()
-        }, 1000)
-    })
-}
 
 export default function LanguageTrainer() {
     const [search, setSearch] = useState("")
@@ -56,7 +21,6 @@ export default function LanguageTrainer() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-        status,
         error,
         isLoading,
     } = useInfiniteLanguageItems(debouncedSearch, PAGE_SIZE)
@@ -66,8 +30,6 @@ export default function LanguageTrainer() {
 
     // Add Item dialog state
     const [open, setOpen] = useState(false)
-    const [addLoading, setAddLoading] = useState(false)
-    const [addError, setAddError] = useState<string | null>(null)
     const [form, setForm] = useState<Omit<LanguageItem, "id">>({
         content: "",
         translation: "",
@@ -79,8 +41,24 @@ export default function LanguageTrainer() {
 
     // Delete Item dialog state
     const [deleteOpen, setDeleteOpen] = useState(false)
-    const [deleteLoading, setDeleteLoading] = useState(false)
     const [deleteItem, setDeleteItem] = useState<LanguageItem | null>(null)
+
+    // Update Item dialog state
+    const [updateOpen, setUpdateOpen] = useState(false)
+    const [updateItem, setUpdateItem] = useState<LanguageItem | null>(null)
+    const [updateForm, setUpdateForm] = useState<LanguageItemUpdate>({
+        content: "",
+        translation: "",
+        example: "",
+        itemType: "word",
+        sourceLanguage: "en",
+        targetLanguage: "uk",
+    })
+
+    // Real API hooks
+    const createMutation = useCreateLanguageItem()
+    const updateMutation = useUpdateLanguageItem()
+    const deleteMutation = useDeleteLanguageItem()
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
@@ -94,12 +72,15 @@ export default function LanguageTrainer() {
         setForm(f => ({ ...f, [name]: value }))
     }
 
+    const handleUpdateFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target
+        setUpdateForm(f => ({ ...f, [name]: value }))
+    }
+
     const handleAddItem = async (e: React.FormEvent) => {
         e.preventDefault()
-        setAddLoading(true)
-        setAddError(null)
         try {
-            await addItemToApi(form)
+            await createMutation.mutateAsync(form)
             setOpen(false)
             setForm({
                 content: "",
@@ -109,15 +90,23 @@ export default function LanguageTrainer() {
                 sourceLanguage: "en",
                 targetLanguage: "uk",
             })
-            // Refresh list
-            //setItems([])
-            //setPage(1)
-            //setHasMore(true)
-        } catch {
-            setAddError("Failed to add item")
-        } finally {
-            setAddLoading(false)
+        } catch (error) {
+            // Error handling is managed by the mutation
+            console.error("Failed to add item:", error)
         }
+    }
+
+    const handleEditClick = (item: LanguageItem) => {
+        setUpdateItem(item)
+        setUpdateForm({
+            content: item.content,
+            translation: item.translation,
+            example: item.example || "",
+            itemType: item.itemType,
+            sourceLanguage: item.sourceLanguage,
+            targetLanguage: item.targetLanguage,
+        })
+        setUpdateOpen(true)
     }
 
     const handleDeleteClick = (item: LanguageItem) => {
@@ -125,25 +114,37 @@ export default function LanguageTrainer() {
         setDeleteOpen(true)
     }
 
+    const handleUpdateItem = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!updateItem) return
+        try {
+            await updateMutation.mutateAsync({ id: updateItem.id, data: updateForm })
+            setUpdateOpen(false)
+            setUpdateItem(null)
+            setUpdateForm({
+                content: "",
+                translation: "",
+                example: "",
+                itemType: "word",
+                sourceLanguage: "en",
+                targetLanguage: "uk",
+            })
+        } catch (error) {
+            // Error handling is managed by the mutation
+            console.error("Failed to update item:", error)
+        }
+    }
+
     const handleDeleteConfirm = async () => {
         if (!deleteItem) return
-        setDeleteLoading(true)
-        await deleteItemFromApi(deleteItem.id)
-        setDeleteOpen(false)
-        setDeleteLoading(false)
-        setDeleteItem(null)
-        //setPage(1)
-        //setHasMore(true)
-        //fetchItemsFromApi({ page, search: debouncedSearch })
-        //    .then(data => {
-        //        setItems(prev => page === 1 ? data.items : [...prev, ...data.items])
-        //        setHasMore(data.hasMore)
-        //        setLoading(false)
-        //    })
-        //    .catch(() => {
-        //        setError("Failed to load items")
-        //        setLoading(false)
-        //    })
+        try {
+            await deleteMutation.mutateAsync(deleteItem.id)
+            setDeleteOpen(false)
+            setDeleteItem(null)
+        } catch (error) {
+            // Error handling is managed by the mutation
+            console.error("Failed to delete item:", error)
+        }
     }
 
     return (
@@ -172,11 +173,23 @@ export default function LanguageTrainer() {
                 <AddLanguageItemDialog
                     open={open}
                     setOpen={setOpen}
-                    loading={addLoading}
-                    error={addError}
+                    loading={createMutation.isPending}
+                    error={createMutation.error?.message || null}
                     form={form}
                     onChange={handleFormChange}
                     onSubmit={handleAddItem}
+                />
+
+                {/* Update Item Dialog */}
+                <UpdateLanguageItemDialog
+                    open={updateOpen}
+                    setOpen={setUpdateOpen}
+                    loading={updateMutation.isPending}
+                    error={updateMutation.error?.message || null}
+                    item={updateItem}
+                    form={updateForm}
+                    onChange={handleUpdateFormChange}
+                    onSubmit={handleUpdateItem}
                 />
 
                 {/* Confirm Delete Dialog */}
@@ -185,7 +198,7 @@ export default function LanguageTrainer() {
                     setOpen={setDeleteOpen}
                     onConfirm={handleDeleteConfirm}
                     description={deleteItem ? `Are you sure you would like to delete "${deleteItem.content}"?` : undefined}
-                    loading={deleteLoading}
+                    loading={deleteMutation.isPending}
                 />
 
                 {/* Table with lazy scroll */}
@@ -200,7 +213,7 @@ export default function LanguageTrainer() {
                                 <th className="px-4 py-2 text-left font-semibold">Content</th>
                                 <th className="px-4 py-2 text-left font-semibold">Translation</th>
                                 <th className="px-4 py-2 text-left font-semibold">Example</th>
-                                <th className="px-2 py-2 w-10"></th>
+                                <th className="px-2 py-2 w-20"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -215,14 +228,24 @@ export default function LanguageTrainer() {
                                         <td className="px-4 py-2">{item.translation}</td>
                                         <td className="px-4 py-2">{item.example}</td>
                                         <td className="px-2 py-2 text-center align-middle">
-                                            <button
-                                                type="button"
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
-                                                title="Delete"
-                                                onClick={() => handleDeleteClick(item)}
-                                            >
-                                                <Trash className="h-4 w-4" />
-                                            </button>
+                                            <div className="flex gap-1 justify-center">
+                                                <button
+                                                    type="button"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                                    title="Edit"
+                                                    onClick={() => handleEditClick(item)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive/80"
+                                                    title="Delete"
+                                                    onClick={() => handleDeleteClick(item)}
+                                                >
+                                                    <Trash className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
