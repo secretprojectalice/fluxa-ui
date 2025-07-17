@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { createLanguageItem, deleteLanguageItem, fetchLanguageItems, updateLanguageItem } from '@/api/language'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { checkRandomGuessExercise, createLanguageItem, deleteLanguageItem, fetchLanguageItems, fetchRandomGuessExercise, updateLanguageItem, type CheckGuessExercisePayload } from '@/api/language'
 import type { LanguageItem, LanguageItemUpdate } from '@/definitions/language'
 
 export const useInfiniteLanguageItems = (search: string = "", limit: number = 10) => {
@@ -8,6 +8,19 @@ export const useInfiniteLanguageItems = (search: string = "", limit: number = 10
         queryFn: ({ pageParam }) => fetchLanguageItems({ search, pageParam, limit }),
         getNextPageParam: (lastPage) => lastPage.nextPage,
         initialPageParam: 1,
+    })
+}
+
+export const useGuessExercise = () => {
+    return useQuery({
+        queryKey: ['guessExercise'],
+        queryFn: () => fetchRandomGuessExercise(),
+    })
+}
+
+export const useCheckGuessExercise = () => {
+    return useMutation({
+        mutationFn: (data: CheckGuessExercisePayload) => checkRandomGuessExercise(data)
     })
 }
 

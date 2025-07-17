@@ -3,11 +3,12 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { LanguageItem, LanguageItemUpdate } from "@/definitions/language"
-import { Search, Trash, Edit } from "lucide-react"
+import { Search, Trash, Edit, PlayIcon } from "lucide-react"
 import { useDebounce } from "../lib/utils"
 import AddLanguageItemDialog from "@/components/AddLanguageItemDialog"
 import UpdateLanguageItemDialog from "@/components/UpdateLanguageItemDialog"
-import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog"
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteLanguageItemDialog"
+import GuessExerciseDialog from "@/components/GuessExerciseDialog"
 import { useInfiniteLanguageItems, useCreateLanguageItem, useUpdateLanguageItem, useDeleteLanguageItem } from '@/hooks/useLanguage'
 
 const PAGE_SIZE = 10
@@ -59,6 +60,9 @@ export default function LanguageTrainer() {
     const createMutation = useCreateLanguageItem()
     const updateMutation = useUpdateLanguageItem()
     const deleteMutation = useDeleteLanguageItem()
+
+    // Exercise dialog state
+    const [exerciseOpen, setExerciseOpen] = useState(false)
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
@@ -147,6 +151,10 @@ export default function LanguageTrainer() {
         }
     }
 
+    const startExercise = async () => {
+        setExerciseOpen(true)
+    }
+
     return (
         <Card className="max-w-5xl">
             <CardHeader>
@@ -166,6 +174,9 @@ export default function LanguageTrainer() {
                     </div>
                     <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
                         Add item
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={startExercise}>
+                        <PlayIcon />
                     </Button>
                 </form>
 
@@ -200,6 +211,9 @@ export default function LanguageTrainer() {
                     description={deleteItem ? `Are you sure you would like to delete "${deleteItem.content}"?` : undefined}
                     loading={deleteMutation.isPending}
                 />
+
+                {/* Guess Exercise Dialog */}
+                {exerciseOpen && <GuessExerciseDialog open={exerciseOpen} setOpen={setExerciseOpen} />}
 
                 {/* Table with lazy scroll */}
                 <div
