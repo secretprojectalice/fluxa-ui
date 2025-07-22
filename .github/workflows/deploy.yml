@@ -1,0 +1,17 @@
+name: Deploy Fluxa UI
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    update-env:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+
+            - name: Update .env file
+              run: |
+                  echo "VITE_LANGUAGE_API_BASE_URL=${{ secrets.LANGUAGE_API_BASE_URL }}" >> .env
