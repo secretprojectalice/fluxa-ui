@@ -1,5 +1,6 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { cn } from '@/lib/utils'
 
 // Dialog styles (shadcn/ui style, centered modal)
 export function Dialog({ open, onOpenChange, children }: { open: boolean, onOpenChange: (open: boolean) => void, children: React.ReactNode }) {
@@ -41,4 +42,20 @@ export function DialogTitle({ children, className, ...props }: React.ComponentPr
 
 export function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     return <div className={"flex flex-row-reverse gap-2 mt-4 " + (className || "")} {...props} />
-} 
+}
+
+export function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+    return (
+        <div
+            data-slot="dialog-header"
+            className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+            {...props}
+        />
+    )
+}
+
+export function DialogTrigger({
+    ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+    return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}

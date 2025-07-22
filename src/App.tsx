@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard'
 import SignIn from './pages/SignIn'
 import LanguageTrainer from './pages/LanguageTrainer'
 import Layout from './components/Layout'
+import EventsPage from './pages/Events'
 
 function App() {
   const navigate = useNavigate()
@@ -23,6 +24,12 @@ function App() {
             path="/language"
             element={
               <LanguageTrainer />
+            }
+          />
+          <Route
+            path="/events"
+            element={
+              <EventsPage />
             }
           />
           <Route

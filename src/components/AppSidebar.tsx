@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Settings, LogOut, LinkIcon, Languages } from "lucide-react"
+import { Home, Settings, LogOut, Languages, Calendar } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -27,9 +27,9 @@ const items = [
         icon: Languages,
     },
     {
-        title: "Link 2",
-        url: "#",
-        icon: LinkIcon,
+        title: "Events",
+        url: "/events",
+        icon: Calendar,
     },
     {
         title: "Settings",
